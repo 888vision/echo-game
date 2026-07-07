@@ -1,0 +1,15 @@
+export const theme = {
+  bg: '#0a0e27',
+  bgSecondary: '#0d1130',
+  primary: '#e8a87c',
+  secondary: '#f5f0e8',
+  accent: '#6c5ce7',
+  text: '#f5f0e8',
+  textDim: 'rgba(245, 240, 232, 0.5)',
+  glow: 'rgba(232, 168, 124, 0.3)',
+  danger: '#e74c3c',
+  success: '#2ecc71',
+  nebula: '#a29bfe',
+  darkMatter: '#2d3436',
+  companion: '#fd79a8',
+};
