@@ -155,7 +155,6 @@ export default function OpeningScene({ onComplete }: OpeningSceneProps) {
 
     // Animation
     let lastTime = performance.now() / 1000;
-    let completed = false;
 
     const animate = () => {
       animFrameRef.current = requestAnimationFrame(animate);
@@ -175,11 +174,13 @@ export default function OpeningScene({ onComplete }: OpeningSceneProps) {
       if (phase === 'explode') {
         const explodeTime = now - explodeStartTimeRef.current;
 
+        // Fade out core
         const coreFade = Math.max(0, 1 - explodeTime * 0.8);
         core.material.opacity = coreFade;
         core.material.transparent = true;
         core.scale.setScalar(1 + explodeTime * 2);
 
+        // Update particles
         for (const p of particles) {
           p.mesh.position.add(p.velocity.clone().multiplyScalar(dt * 60));
           p.velocity.multiplyScalar(0.995);
@@ -189,36 +190,36 @@ export default function OpeningScene({ onComplete }: OpeningSceneProps) {
           p.mesh.scale.setScalar(1 + explodeTime * 0.5);
         }
 
+        // Camera zooms out
         camera.position.z = 5 + explodeTime * 3;
 
-        if (explodeTime > 4 && !completed) {
-          completed = true;
+        // After 4 seconds, transition to reveal
+        if (explodeTime > 4) {
           phaseRef.current = 'reveal';
+          explodeStartTimeRef.current = now; // Reset timer for reveal phase
         }
       }
 
-      if (phase === 'reveal' && !completed) {
-        const revealTime = now - explodeStartTimeRef.current - 4;
+      if (phase === 'reveal') {
+        const revealTime = now - explodeStartTimeRef.current;
 
+        // Fade out remaining particles
         for (const p of particles) {
           const fadeOut = Math.max(0, 1 - revealTime * 0.5);
           p.mesh.material.opacity = fadeOut * 0.6;
         }
 
+        // After 3 seconds, animation complete
         if (revealTime > 3) {
-          completed = true;
-          // Cancel animation loop
           cancelAnimationFrame(animFrameRef.current);
-          // Clean up and notify parent — using a safe deferred call
-          requestAnimationFrame(() => {
-            if (mountedRef.current) {
-              // Clean up renderer
-              canvas.removeEventListener('click', handleClick);
-              renderer.dispose();
-              // Notify parent to transition
-              onCompleteRef.current();
-            }
-          });
+          // Clean up
+          mountedRef.current = false;
+          canvas.removeEventListener('click', handleClick);
+          ro.disconnect();
+          try { renderer.dispose(); } catch {}
+          // Transition to text phase
+          onCompleteRef.current();
+          return;
         }
       }
 
@@ -240,17 +241,13 @@ export default function OpeningScene({ onComplete }: OpeningSceneProps) {
     });
     ro.observe(canvas.parentElement!);
 
-    // Cleanup — safe for React StrictMode
+    // Cleanup for React StrictMode
     const cleanup = () => {
       cancelAnimationFrame(animFrameRef.current);
       mountedRef.current = false;
       ro.disconnect();
-      try {
-        canvas.removeEventListener('click', handleClick);
-      } catch {}
-      try {
-        renderer.dispose();
-      } catch {}
+      try { canvas.removeEventListener('click', handleClick); } catch {}
+      try { renderer.dispose(); } catch {}
     };
 
     return cleanup;
