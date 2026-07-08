@@ -24,18 +24,45 @@ const lines = [
   'Become... a king once more.',
 ];
 
+// Chinese translation for the second phase
+const chineseLines = [
+  '你还记得光的样子吗？',
+  '',
+  '在数十亿年的燃烧之后，',
+  '你的恒星终于熄灭了。',
+  '',
+  '但在最后一刻，',
+  '量子涨落给了你一个机会——',
+  '',
+  '将你的意识，',
+  '像种子一样撒向宇宙。',
+  '',
+  '重新生长。',
+  '重新发光。',
+  '',
+  '重新……成为王。',
+];
+
 export default function OpeningText({ onDone }: OpeningTextProps) {
+  const [phase, setPhase] = useState<'en' | 'zh' | 'done'>('en');
   const [lineIndex, setLineIndex] = useState(0);
   const [showCursor, setShowCursor] = useState(true);
-  const [allDone, setAllDone] = useState(false);
+  const [showHint, setShowHint] = useState(false);
 
+  // Which lines to type based on current phase
+  const currentLines = phase === 'en' ? lines : chineseLines;
+
+  // Typing animation
   useEffect(() => {
-    if (lineIndex >= lines.length) return;
-    const currentLine = lines[lineIndex];
+    if (phase === 'done') return;
+    if (lineIndex >= currentLines.length) return;
+
+    const currentLine = currentLines[lineIndex];
     if (!currentLine) {
       const timer = setTimeout(() => setLineIndex(prev => prev + 1), 300);
       return () => clearTimeout(timer);
     }
+
     let charIdx = 0;
     const interval = setInterval(() => {
       charIdx++;
@@ -43,11 +70,18 @@ export default function OpeningText({ onDone }: OpeningTextProps) {
         clearInterval(interval);
         const timer = setTimeout(() => {
           setLineIndex(prev => {
-            if (prev >= lines.length - 1) {
-              setAllDone(true);
-              setTimeout(() => {
-                onDone();
-              }, 2500);
+            if (prev >= currentLines.length - 1) {
+              // Line done — move to next phase
+              if (phase === 'en') {
+                setPhase('zh');
+                setLineIndex(0);
+              } else {
+                setPhase('done');
+                setShowHint(true);
+                setTimeout(() => {
+                  onDone();
+                }, 2500);
+              }
               return prev;
             }
             return prev + 1;
@@ -56,9 +90,11 @@ export default function OpeningText({ onDone }: OpeningTextProps) {
         return () => clearTimeout(timer);
       }
     }, 80);
-    return () => clearInterval(interval);
-  }, [lineIndex, lines.length, onDone]);
 
+    return () => clearInterval(interval);
+  }, [lineIndex, currentLines, phase, onDone]);
+
+  // Cursor blink
   useEffect(() => {
     const interval = setInterval(() => setShowCursor(prev => !prev), 530);
     return () => clearInterval(interval);
@@ -76,8 +112,8 @@ export default function OpeningText({ onDone }: OpeningTextProps) {
       }}
     >
       <div style={{ maxWidth: '520px', textAlign: 'center' }}>
-        {lines.map((line, i) => (
-          <div key={i} style={{
+        {currentLines.map((line, i) => (
+          <div key={`${phase}-${i}`} style={{
             minHeight: line ? '36px' : '14px',
             fontSize: line ? '20px' : '16px', lineHeight: 1.8,
             fontFamily: "'Cormorant Garamond', 'Noto Serif SC', Georgia, serif",
@@ -98,7 +134,7 @@ export default function OpeningText({ onDone }: OpeningTextProps) {
             )}
           </div>
         ))}
-        {allDone && (
+        {showHint && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} style={{
             marginTop: '50px', fontSize: '13px', color: theme.textDim,
             letterSpacing: '4px', animation: 'pulse 2s infinite',

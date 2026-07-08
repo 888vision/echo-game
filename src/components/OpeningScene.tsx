@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
+
 const THEME = {
   primary: '#e8a87c',
   secondary: '#f5f0e8',
@@ -104,7 +105,7 @@ export default function OpeningScene({ onComplete }: OpeningSceneProps) {
     // Particles array
     const particles: Particle[] = [];
 
-    // Click handler - defined outside init to avoid closure issues
+    // Click handler
     const handleClick = () => {
       if (phaseRef.current === 'idle') {
         phaseRef.current = 'explode';
@@ -157,7 +158,7 @@ export default function OpeningScene({ onComplete }: OpeningSceneProps) {
     let completed = false;
 
     const animate = () => {
-      const id = requestAnimationFrame(animate);
+      animFrameRef.current = requestAnimationFrame(animate);
 
       const now = performance.now() / 1000;
       const dt = Math.min(now - lastTime, 0.1);
@@ -206,13 +207,18 @@ export default function OpeningScene({ onComplete }: OpeningSceneProps) {
 
         if (revealTime > 3) {
           completed = true;
-          cancelAnimationFrame(id);
-          setTimeout(() => {
+          // Cancel animation loop
+          cancelAnimationFrame(animFrameRef.current);
+          // Clean up and notify parent — using a safe deferred call
+          requestAnimationFrame(() => {
             if (mountedRef.current) {
-              cleanup();
+              // Clean up renderer
+              canvas.removeEventListener('click', handleClick);
+              renderer.dispose();
+              // Notify parent to transition
               onCompleteRef.current();
             }
-          }, 100);
+          });
         }
       }
 
@@ -234,12 +240,17 @@ export default function OpeningScene({ onComplete }: OpeningSceneProps) {
     });
     ro.observe(canvas.parentElement!);
 
-    // Cleanup
+    // Cleanup — safe for React StrictMode
     const cleanup = () => {
       cancelAnimationFrame(animFrameRef.current);
-      canvas.removeEventListener('click', handleClick);
+      mountedRef.current = false;
       ro.disconnect();
-      renderer.dispose();
+      try {
+        canvas.removeEventListener('click', handleClick);
+      } catch {}
+      try {
+        renderer.dispose();
+      } catch {}
     };
 
     return cleanup;
